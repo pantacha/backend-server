@@ -7,11 +7,16 @@ var saltRounds = 10;
 var middlewareAUTh = require('../middlewares/autenticacion');
 
 var app = express();
-var Usuario = require('../models/model');
+var Usuario = require('../models/usuario');
 
 //Obtener todos los usuario
 app.get('/', (req,res,next) => {
-    Usuario.find({}, 'nombre email img role').exec( (err,usuarios) => {
+    var desde = req.query.desde || 0;
+    desde = Number(desde);
+    Usuario.find({}, 'nombre email img role')
+    .skip(desde)
+    .limit(5)
+    .exec( (err,usuarios) => {
         if(err){
             return res.status(500).json({
                 ok: false,
@@ -19,10 +24,13 @@ app.get('/', (req,res,next) => {
                 err: err
             })
         }
-        res.status(200).json({
-            ok: true,
-            usuarios: usuarios
-        });
+        Usuario.count({},(err,cont) => {
+            res.status(200).json({
+                ok: true,
+                usuarios: usuarios,
+                total: cont
+            });
+        })
     });
 });
 
@@ -55,7 +63,7 @@ app.post('/', middlewareAUTh.verificaToken, (req, res, next) => {
 })
 
 //Actualizar usuario
-app.put('/:id', (req,res,next) => {
+app.put('/:id', middlewareAUTh.verificaToken, (req, res, next) => {
     var id = req.params.id;
     var body = req.body;
     Usuario.findById(id, 'nombre email img role').exec( (err, usuario) => {
@@ -94,7 +102,7 @@ app.put('/:id', (req,res,next) => {
 });
 
 //Borrar un usuario por su id
-app.delete('/:id', (req,res,next) => {
+app.delete('/:id', middlewareAUTh.verificaToken, (req, res, next) => {
     var id = req.params.id;
     Usuario.findByIdAndRemove(id, (err, usuario) => {
         if(err){
